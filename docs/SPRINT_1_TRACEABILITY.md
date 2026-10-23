@@ -59,7 +59,7 @@ failed because the Jira connector was unreachable; do not call it a new read-bac
 | Item | Current evidence and open boundary |
 | --- | --- |
 | CHAT-39 - Hrisheek, unit test leadership | Existing component tests pass; auth/message owner tests and genuine test-case review remain open |
-| CHAT-40 - Yaswanth, integration/QA | Room/security tests pass; real credential-to-message flows and QA review remain blocked |
+| CHAT-40 - Yaswanth, integration/QA | Room/security tests pass; messaging Node/Python integration parity gaps closed 23 October (commit 5a95d90, fork PR kalluri088#1: Node 228, Python 233). Real credential-to-message flows and QA review remain blocked on CHAT-10..13 auth |
 | CHAT-41 - Soham, CI | Builds, unit/integration jobs and report artifacts exist; launcher smoke added; final integrated-commit checks and required review remain open |
 | CHAT-42 - Soham, tracking | Issues/owners/points/Project and genuine PR stack exist; board corrected; final owner contributions, decisions and closure evidence remain open |
 | CHAT-43 - Yaswanth coordinates, all demonstrate | Real working-product flow and one-minute recording/upload/playback remain blocked; use SPRINT_1_REVIEW_DEMO.md |
