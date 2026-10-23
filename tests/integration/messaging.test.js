@@ -111,6 +111,20 @@ test('CHAT-14: non-members are refused and nothing is broadcast', async () => {
   expect(aliceMessages).toEqual([]);
 });
 
+// Parity with python_backend/tests/integration/test_messaging.py: a second tab is a different
+// socket of the same user, so it sends with the shared identity and every tab observes the result.
+test('CHAT-14: a second tab of one member sends and all of that member\'s tabs receive', async () => {
+  const alice = await client('alice'), tab = await client('alice', 'second');
+  const room = await joinRoom(alice, tab);
+  const aliceMessages = collect(alice, 'message:received');
+  const tabMessages = collect(tab, 'message:received');
+  const result = await ack(tab, 'message:send', { roomId: room.roomId, content: 'from the second tab' });
+  expect(result.data.senderId).toBe('alice');
+  await ack(alice, 'system:ping', { nonce: 'second-tab-barrier' });
+  expect(aliceMessages).toEqual([result.data]);
+  expect(tabMessages).toEqual([result.data]);
+});
+
 test.each([null, undefined, [], 'room', {}, { roomId: 42 }, { roomId: 'x'.repeat(129) },
   { roomId: 'missing', content: 'hi' }, { content: 'no room' }])
   ('CHAT-14: invalid message:send payload %# gets a failure envelope and no broadcast', async payload => {

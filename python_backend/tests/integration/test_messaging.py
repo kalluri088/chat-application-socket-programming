@@ -8,7 +8,8 @@
 # The Flask test client is an in-process transport: it delivers events synchronously and does
 # not exercise real packet ordering. Cross-client ordering over an actual Socket.IO connection
 # is covered by tests/integration/messaging.test.js on the Node side.
-from time import time
+from math import ceil
+from time import perf_counter, time
 
 import jwt
 import pytest
@@ -195,14 +196,35 @@ def test_chat_14_second_tab_of_a_member_sends_and_both_receive(setup):
     assert events(tab, 'message:received') == [result['data']]
 
 
+def test_chat_14_unacknowledged_emit_still_broadcasts(setup):
+    # Parity with tests/integration/messaging.test.js: a client that emits without requesting an
+    # acknowledgement never sees the result, but the room still receives the message.
+    _, _, _, client, join = setup
+    alice, bob = client('alice'), client('bob')
+    room = join(alice, bob)
+    alice.get_received(); bob.get_received()
+    assert alice.emit('message:send', {'roomId': room['roomId'], 'content': 'fire and forget'}) is None
+    delivered = events(bob, 'message:received')
+    assert [m['content'] for m in delivered] == ['fire and forget']
+    assert delivered[0]['senderId'] == 'alice'
+
+
 def test_chat_14_messages_are_delivered_in_send_order_without_loss(setup):
     _, _, _, client, join = setup
     alice, bob = client('alice'), client('bob')
     room = join(alice, bob)
     bob.get_received()
+    latencies = []
     for i in range(1, 21):
+        started = perf_counter()
         assert alice.emit('message:send', {'roomId': room['roomId'], 'content': f'message {i}'},
                           callback=True)['data']['content'] == f'message {i}'
+        latencies.append((perf_counter() - started) * 1000)
+    # Reported, not contracted: the test plan states no numeric delivery budget, so this records
+    # the TC-Msg-01 sender-acknowledgement observation instead of asserting an invented threshold.
+    ordered = sorted(latencies)
+    print(f"CHAT-15 sender acknowledgement over in-process transport: 20 sends, "
+          f"p90={ordered[max(0, ceil(len(ordered) * 0.9) - 1)]:.2f}ms, max={ordered[-1]:.2f}ms")
     received = events(bob, 'message:received')
     assert [m['content'] for m in received] == [f'message {i}' for i in range(1, 21)]
     assert len({m['messageId'] for m in received}) == 20
