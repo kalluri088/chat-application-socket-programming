@@ -237,3 +237,72 @@ status and Jira still failed intermittently. Therefore the implementation is
 published, but new exact-commit CI, current owner PR availability and fresh Jira
 read-back must still be verified; the earlier pending-publication paragraph is
 historical. Keep the tested local results distinct from remote CI success.
+
+## 23 October - CHAT-40 integration parity, and the Jira/CHAT-43 blockers
+
+Read back PR #45 before working: state OPEN, `mergedAt` null, base
+`CHAT-19-rooms-security` <- head `sprint-1/yaswanth`, four commits, both
+"Node build, unit and integration tests" and "Python build, unit and integration
+tests" checks SUCCESS, `mergeable` MERGEABLE. It was left exactly as found: not
+merged, not closed, no new commits pushed to it.
+
+### CHAT-40 executed work
+
+Compared `tests/integration/messaging.test.js` against
+`python_backend/tests/integration/test_messaging.py` case by case and found three
+asymmetries, then closed each on the runtime that lacked it:
+
+- Node lacked a multi-tab **sender** case (a second tab appeared only as a
+  recipient of another user's message). Added
+  `CHAT-14: a second tab of one member sends and all of that member's tabs receive`.
+- Python lacked the fire-and-forget emit. Added
+  `test_chat_14_unacknowledged_emit_still_broadcasts`, asserting the emitting
+  client receives no acknowledgement while the room still gets the delivery.
+- Python's ordered-delivery case measured nothing while Node reported CHAT-15
+  acknowledgement timing. Added the same p90/max observation.
+
+No production code changed, and no existing assertion was weakened or removed.
+
+Actual results on this machine: Node messaging integration 24 -> **25 passed**;
+Node full suite **228 passed / 12 suites** (was 227); `npm run build` passed.
+Python messaging integration 23 -> **24 passed**; Python integration batches
+12 + 10 + 12 + 24 = **58 passed**; Python unit batches 21 + 51 + 73 + 30 =
+**175 passed** (total 233, was 232); `compileall` exit 0. Recorded timings:
+Python in-process `p90=0.24ms, max=0.84ms`. That figure is an in-process Flask
+test-client transport and is **not** comparable to the SRS TC-Msg-01 network
+budget, so it is reported rather than asserted; the test plan sets no numeric
+threshold. TC-Msg-01 still cannot be measured end to end because production login
+is unwired.
+
+Stacking note: `sprint-1/yaswanth` does not exist upstream, so it cannot be an
+upstream PR base, and retargeting to `CHAT-19-rooms-security` would re-list the
+four commits already under review in #45. Commit `5a95d90` was therefore pushed as
+`sprint-1/yaswanth-chat-40` and raised as **kalluri088#1** (verified OPEN, base
+`sprint-1/yaswanth`, exactly one commit, MERGEABLE, no checks configured on the
+fork). It should be retargeted upstream only after #45 actually merges.
+
+### Jira: still not writable, and the reason is now precise
+
+The earlier "connector unreachable" wording is imprecise. `https://jsohamrao.atlassian.net`
+answers (HTTP 401 to `/rest/api/2/myself`, while `api.github.com` returns 200 in the
+same check), so the network is fine; there is simply **no Jira credential or connector
+configured here** - the user-level MCP config declares an empty server set, there is no
+Jira CLI, no `~/.netrc`, no Jira variables in the repository `.env`, and
+`JIRA_INTEGRATION_TEST.md` is an empty file. Consequently **no CHAT issue was read,
+transitioned or commented on during this session.** Every status statement in this
+repository is derived from the 22 October snapshot in
+`docs/PART_2_TRACKING_SNAPSHOT.json` plus verified GitHub state, not a fresh read-back.
+Do not treat this paragraph as a Jira update.
+
+### CHAT-43: verified blocked, deliberately not recorded
+
+Part 2 requires the one-minute video to show the real working product, and the
+readiness gate in `SPRINT_1_REVIEW_DEMO.md` forbids substituting a fixture token.
+Checked the shipped wiring rather than assuming: `src/index.js` constructs the
+application without an `auth` option, so it defaults to `unavailableAuth`, whose
+`authenticate` throws `AUTH_NOT_IMPLEMENTED` and denies every socket; neither backend
+passes a `loginHandler`; and `git ls-files` contains no client, `public/` or HTML at
+all. Two signed-in users exchanging a real message is therefore impossible today, so
+recording would fabricate the product. CHAT-43 remains **blocked**, with no video
+file, upload or link. Unblocking needs Hrisheek's registration/login/revocation
+module and an agreed demo client owner.
